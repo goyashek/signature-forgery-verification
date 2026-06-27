@@ -1,0 +1,11 @@
+# Signature Forgery Verification — dependencies
+# Training runs on Google Colab GPU; the Streamlit app runs locally or on Streamlit Cloud.
+# Ranges chosen to stay compatible with Colab (Python 3.10/3.11) and Streamlit Cloud.
+
+tensorflow>=2.15,<2.20
+numpy>=1.26,<2.1
+pandas>=2.0
+scikit-learn>=1.3
+matplotlib>=3.7
+Pillow>=10.0
+streamlit>=1.31
