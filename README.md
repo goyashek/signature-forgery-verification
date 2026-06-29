@@ -25,7 +25,7 @@ license: mit
 ![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white)
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?logo=scikitlearn&logoColor=white)
 ![Gradio](https://img.shields.io/badge/Gradio-App-FF7C00?logo=gradio&logoColor=white)
-![HF Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Spaces-Live%20Demo-FFD21E)
+[![HF Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Spaces-Live%20Demo-FFD21E)](https://huggingface.co/spaces/goyashek/signature-forgery-verification)
 ![Colab](https://img.shields.io/badge/Google%20Colab-GPU-F9AB00?logo=googlecolab&logoColor=white)
 
 ![Best Model](https://img.shields.io/badge/Best%20Model-EfficientNet--B0%20%2B%20Batch--Hard-success)
