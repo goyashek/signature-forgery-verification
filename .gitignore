@@ -1,4 +1,6 @@
-# Secondary CEDAR-style set — not used by the notebooks. Download separately if needed.
+# Raw NFI download — 189 MB, heavily duplicated, and 205 images carry inconsistent
+# filename IDs. NOT committed. The clean, deduplicated, resized subset lives in
+# sign_data_nfi/ (tracked) — see sign_data_nfi/README.md.
 sign_data2/
 
 # Personal tooling, not part of the project
