@@ -369,7 +369,12 @@ Signature-forgery-verification/
 - **`sign_data_nfi/`** — a clean, deduplicated NFI subset committed as an independent
   **cross-dataset test set** (evaluated untouched, to measure honest domain transfer).
 
----
+
+## 🛠️ Workflow & Engineering Stack
+
+- **Core Frameworks**: TensorFlow/Keras, Pandas, NumPy, Gradio.
+
+- **Development Workflow**: Used AI code-generation tools (e.g., GitHub Copilot) to help with boilerplate architecture setup and front-end UI scripting, allowing core focus to remain on data pipeline diagnostics, leak detection algorithms, and custom metric-learning validation.
 
 ## ⚖️ Disclaimer
 
