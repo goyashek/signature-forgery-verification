@@ -24,3 +24,6 @@ signature-verification-using-rnn-c-rnn-b-rnn.ipynb
 
 # raw downloaded datasets (BHSig260 etc.) — derived into sign_data_combined/
 archive/
+
+# Local research log (working notes, not part of the public repo)
+research.md
