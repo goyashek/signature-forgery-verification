@@ -21,3 +21,6 @@ __pycache__/
 .DS_Store
 
 signature-verification-using-rnn-c-rnn-b-rnn.ipynb
+
+# raw downloaded datasets (BHSig260 etc.) — derived into sign_data_combined/
+archive/
