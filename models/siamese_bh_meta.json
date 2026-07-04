@@ -1,0 +1,1 @@
+{"global_threshold": 0.8676790595054626, "per_writer_alpha": 1.5, "n_ref": 5, "img_h": 155, "img_w": 220, "preprocess": "invert_gray3ch", "channels": 3, "model": "siamese_efficientnet_b0_batchhard"}
