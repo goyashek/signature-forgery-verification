@@ -1,0 +1,43 @@
+name: Sync to Hugging Face Space
+
+# Every push to main mirrors the app into the HF Space. It uploads ONLY the files the
+# Space needs (app.py, requirements.txt, README.md, models/) — never the datasets or
+# notebooks, which are large and irrelevant to the deployed app.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # lets you trigger it manually from the Actions tab
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - run: pip install "huggingface_hub>=0.30"
+
+      - name: Push app files to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          SPACE_ID: goyashek/signature-forgery-verification
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          api.upload_folder(
+              repo_id=os.environ["SPACE_ID"],
+              repo_type="space",
+              folder_path=".",
+              # only these reach the Space — datasets/notebooks are excluded
+              allow_patterns=["app.py", "requirements.txt", "README.md", "models/**"],
+              commit_message=f"Sync from GitHub @ {os.environ.get('GITHUB_SHA','')[:7]}",
+          )
+          print("synced to", os.environ["SPACE_ID"])
+          PY
