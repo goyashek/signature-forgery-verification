@@ -127,6 +127,11 @@ accepts = false rejects), **FAR** (forgeries wrongly accepted — the costly err
 > Run order: `01 → 01b → 02 → 03 → 03b → 03c → 04`. Notebooks 1–3 are independent learning steps;
 > 3b/3c build the production model; 4 just loads and demonstrates it. Each notebook documents the
 > reasoning behind its design choices inline.
+>
+> The notebooks are written as a **first-person learning journey** — each opens with basic EDA and
+> sanity checks, and the data leaks are *discovered* in the flow (a sanity check that goes wrong,
+> then the fix) rather than assumed up front. The intent is to show the reasoning, not just the
+> final answer.
 
 ---
 
