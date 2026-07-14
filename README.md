@@ -39,49 +39,48 @@ license: mit
 
 ## 📌 Overview
 
-This project verifies whether a questioned signature is **genuine** or a **forgery** by comparing
-it against a known reference — the *offline signature verification* problem. Rather than training
-one classifier per person, it learns a **distance metric** over signatures, so it can judge
-**writers it has never seen during training** and enrol a new person from a single reference.
+This project checks whether a questioned signature is genuine or a forgery by comparing it
+against a known reference — the *offline signature verification* problem. Instead of training one
+classifier per person, I learn a distance metric over signatures, so the model can judge writers it
+never saw during training and enrol a new person from a single reference.
 
-It is structured as a **learning progression** that deliberately starts with the naïve approach,
-*feels* its limitation, and evolves into the correct one — making the *why* behind each design
-choice explicit. The best model is shipped ready-to-run in
-[`notebooks/04_final_demo.ipynb`](notebooks/04_final_demo.ipynb) and served through a small
-**Gradio app on HuggingFace Spaces**.
+I built it as a learning progression: start with the naive approach, watch it break, and work toward
+the right one — keeping the reasoning behind each step visible rather than jumping to the answer. The
+best model is ready to run in [`notebooks/04_final_demo.ipynb`](notebooks/04_final_demo.ipynb) and is
+served through a small Gradio app on HuggingFace Spaces.
 
-> **The flagship finding isn't a model — it's a data leak.** A naïve baseline scored a
-> near-perfect **ROC-AUC 0.999**. That number was a lie: the public dataset has a leak baked into
-> the **CSV pair files that essentially every public Siamese + CNN notebook on it reads from**
-> (100+ on Kaggle). This project is built around catching that leak, proving it with controlled
-> probes, fixing it, and shipping a script that detects it automatically. Once we measured
-> honestly, our "modest" numbers turned out to be the *only trustworthy* ones — and matched the
+> The part I learned the most from here isn't a model — it's a data leak. A naive baseline scored a
+> near-perfect ROC-AUC 0.999, which is far too good for how simple it is. It turned out the public
+> dataset has a leak baked into the CSV pair files that almost every public Siamese + CNN notebook on
+> it reads from. Most of this project is about catching that leak, proving it with a couple of small
+> controlled probes, fixing it, and writing a script that detects it automatically. Once I measured
+> honestly, the "modest" numbers were the ones I could actually trust — and they lined up with the
 > peer-reviewed literature.
 
-> Built end-to-end with concepts from the **CampusX "100 Days of Deep Learning"** syllabus — CNNs,
-> the Keras Functional API, BatchNorm/Dropout/He-init, Adam/RMSprop + EarlyStopping, transfer
-> learning, and metric learning (contrastive → triplet → batch-hard).
+> Built end-to-end with concepts from the CampusX "100 Days of Deep Learning" syllabus — CNNs, the
+> Keras Functional API, BatchNorm/Dropout/He-init, Adam/RMSprop + EarlyStopping, transfer learning,
+> and metric learning (contrastive → triplet → batch-hard).
 
 ---
 
 ## 🧠 The core idea — why Siamese, not classification
 
-A signature verifier is asked *"do these two signatures belong to the same hand?"* — a
-**similarity** question, not a *"which of N people is this?"* classification question. Training a
-per-person classifier breaks the moment a new person appears (you'd have to retrain).
+A signature verifier is really being asked *"do these two signatures belong to the same hand?"* —
+that's a similarity question, not a *"which of N people is this?"* classification question. Training
+a per-person classifier breaks the moment a new person shows up, since you'd have to retrain it.
 
-A **Siamese network** solves the right problem: two identical, weight-sharing CNN towers map each
-signature into an **embedding vector**, and a metric-learning loss shapes that space so genuine
-pairs sit close together and forgeries are pushed apart. Verification is then just a **distance
-threshold** — and it generalises to unseen writers, enrolling a new signer from a single reference.
+A Siamese network solves the right problem: two identical, weight-sharing CNN towers map each
+signature into an embedding vector, and a metric-learning loss shapes that space so genuine pairs sit
+close together and forgeries get pushed apart. Verification is then just a distance threshold — and it
+generalises to unseen writers, enrolling a new signer from a single reference.
 
 ---
 
 ## 🏆 Results (writer-independent, leak-free test set)
 
-Every number below is on **writers never seen in training**, with **leak-free pairs** — so they
-are trustworthy. The story is the *progression*: a fake 0.999, an honest 0.973, then a genuine
-climb to **0.986** by improving the architecture and the training signal.
+Every number below is on writers never seen in training, with leak-free pairs, so they're
+trustworthy. What I find interesting is the progression: a fake 0.999, then an honest 0.973, then a
+real climb to 0.986 by improving the architecture and the training signal.
 
 | # | Model | Test ROC-AUC | Test EER | FAR | FRR | Cross-dataset (NFI) AUC |
 |---|-------|:------------:|:--------:|:---:|:---:|:---:|
@@ -116,13 +115,13 @@ accepts = false rejects), **FAR** (forgeries wrongly accepted — the costly err
 
 | # | Notebook | Paradigm | What it teaches |
 |---|----------|----------|------------------|
-| 1 | [`01_plain_cnn.ipynb`](notebooks/01_plain_cnn.ipynb) | Stack the pair → single CNN → sigmoid | Honest baseline; *feels* why verification ≠ plain classification. Scores a fake 0.999. |
-| 1b | [`01b_data_leak_investigation.ipynb`](notebooks/01b_data_leak_investigation.ipynb) | sklearn probes, no training | **The detective story:** *why* the 0.999 was a leak, proven with img1-only / img2-only probes. |
-| 2 | [`02_siamese_cnn.ipynb`](notebooks/02_siamese_cnn.ipynb) | Twin shared-weight towers + **contrastive loss** | The correct paradigm: embeddings, distance, EER threshold. Earns an honest 0.973. |
-| 3 | [`03_siamese_transfer.ipynb`](notebooks/03_siamese_transfer.ipynb) | **SigNet-style** tower + **SE attention** + **triplet loss**, Latin + Devanagari | A purpose-built signature tower; cross-script evaluation. |
-| 3b | [`03b_siamese_efficientnet.ipynb`](notebooks/03b_siamese_efficientnet.ipynb) | **Fine-tuned EfficientNet-B0** + triplet | Transfer learning done *right* — fine-tuned, not frozen. |
-| 3c | [`03c_siamese_batchhard.ipynb`](notebooks/03c_siamese_batchhard.ipynb) | **+ online batch-hard mining** + adaptive per-writer thresholds | **The winner.** Mines the hardest skilled forgeries each batch; calibrates per writer. |
-| 4 | [`04_final_demo.ipynb`](notebooks/04_final_demo.ipynb) | Load best model → verify real pairs | **Practical showcase** — loads 3c and demonstrates verdicts. No training. |
+| 1 | [`01_plain_cnn.ipynb`](notebooks/01_plain_cnn.ipynb) | Stack the pair → single CNN → sigmoid | Honest baseline; shows why verification ≠ plain classification. Scores a fake 0.999. |
+| 1b | [`01b_data_leak_investigation.ipynb`](notebooks/01b_data_leak_investigation.ipynb) | sklearn probes, no training | Why the 0.999 was a leak, shown with img1-only / img2-only probes. |
+| 2 | [`02_siamese_cnn.ipynb`](notebooks/02_siamese_cnn.ipynb) | Twin shared-weight towers + contrastive loss | The correct paradigm: embeddings, distance, EER threshold. Earns an honest 0.973. |
+| 3 | [`03_siamese_transfer.ipynb`](notebooks/03_siamese_transfer.ipynb) | SigNet-style tower + SE attention + triplet loss, Latin + Devanagari | A purpose-built signature tower; cross-script evaluation. |
+| 3b | [`03b_siamese_efficientnet.ipynb`](notebooks/03b_siamese_efficientnet.ipynb) | Fine-tuned EfficientNet-B0 + triplet | Transfer learning done right — fine-tuned, not frozen. |
+| 3c | [`03c_siamese_batchhard.ipynb`](notebooks/03c_siamese_batchhard.ipynb) | + online batch-hard mining + adaptive per-writer thresholds | The best model. Mines the hardest skilled forgeries each batch; calibrates per writer. |
+| 4 | [`04_final_demo.ipynb`](notebooks/04_final_demo.ipynb) | Load best model → verify real pairs | Loads 3c and demonstrates verdicts. No training. |
 
 > Run order: `01 → 01b → 02 → 03 → 03b → 03c → 04`. Notebooks 1–3 are independent learning steps;
 > 3b/3c build the production model; 4 just loads and demonstrates it. Each notebook documents the
@@ -135,11 +134,11 @@ accepts = false rejects), **FAR** (forgeries wrongly accepted — the costly err
 
 ---
 
-## ⚠️ The flagship — a systemic data leak, caught and fixed
+## ⚠️ The data leaks — caught and fixed
 
 The ICDAR dataset is one of the most-used signature benchmarks on Kaggle, and it ships two leaks.
-The second is subtle enough that **virtually every public Siamese + CNN notebook built on it
-inherits the same inflated scores** — because they all read the same pre-made pair CSVs.
+The second one is subtle enough that a lot of public Siamese + CNN notebooks built on it inherit the
+same inflated scores, because they all read the same pre-made pair CSVs.
 
 ### Leak #1 — the duplicate test set
 
