@@ -24,7 +24,10 @@ Output:
     icdar_001/ icdar_001_forg/ ...    (Latin)
     bhh_001/   bhh_001_forg/   ...     (Devanagari)
 """
-import os, re, glob, csv, sys
+import os
+import re
+import csv
+import sys
 import cv2
 
 # libtiff prints a harmless "Software tag null byte" warning on the BHSig .tif files;
@@ -103,7 +106,7 @@ def build_bhh(rows):
         return 0
     person_dirs = sorted(
         (d for d in os.listdir(BHH_ROOT) if os.path.isdir(os.path.join(BHH_ROOT, d))),
-        key=lambda x: int(x) if x.isdigit() else 1 << 30,
+        key=lambda x: int(x) if x.isdigit() else 10**9,
     )
     n_writers = 0
     for d in person_dirs:
@@ -117,8 +120,12 @@ def build_bhh(rows):
             m = BHH_RE.match(f)
             if not m:
                 continue
-            (gen if m.group(2).upper() == "G" else forg).append((int(m.group(3)), f))
-        gen.sort(); forg.sort()
+            if m.group(2).upper() == "G":
+                gen.append((int(m.group(3)), f))
+            else:
+                forg.append((int(m.group(3)), f))
+        gen.sort()
+        forg.sort()
         if gen:
             ensure(os.path.join(OUT, writer))
             for i, (_, f) in enumerate(gen, 1):

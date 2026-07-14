@@ -40,7 +40,7 @@ from collections import defaultdict
 IMG_EXT = (".png", ".jpg", ".jpeg", ".tif", ".tiff", ".bmp")
 
 
-def md5_of(path, chunk=1 << 20):
+def md5_of(path, chunk=1024 * 1024):
     h = hashlib.md5()
     with open(path, "rb") as fh:
         for blk in iter(lambda: fh.read(chunk), b""):
