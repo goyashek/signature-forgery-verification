@@ -1,1 +1,1 @@
-{"global_threshold": 0.8676790595054626, "per_writer_alpha": 1.5, "n_ref": 5, "img_h": 155, "img_w": 220, "preprocess": "invert_gray3ch", "channels": 3, "model": "siamese_efficientnet_b0_batchhard"}
+{"global_threshold": 0.8676790595054626, "per_writer_alpha": 1.25, "abstain_band_accept": 0.12, "abstain_band_reject": 0.02, "n_ref": 5, "img_h": 155, "img_w": 220, "preprocess": "invert_gray3ch", "channels": 3, "model": "siamese_efficientnet_b0_batchhard"}

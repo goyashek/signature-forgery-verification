@@ -17,6 +17,7 @@ The decision is distance-based: a questioned signature is GENUINE when its mean 
 to the references falls below the threshold. Educational demo — never the sole check in a
 real authentication system.
 """
+import hashlib
 import json
 import os
 
@@ -48,6 +49,24 @@ H, W = META["img_h"], META["img_w"]
 GLOBAL_TAU = META["global_threshold"]   # distance below this = genuine (chosen at EER)
 ALPHA = META["per_writer_alpha"]        # per-writer knob, tuned on validation
 
+# --- abstain band -----------------------------------------------------------------------
+# Normalized margin m = (distance - tau) / tau:  m < 0 => accept side (genuine verdict),
+# m > 0 => reject side (forgery verdict). When m lands in [-BAND_ACCEPT, +BAND_REJECT] the
+# case is too close to call, so we return INCONCLUSIVE instead of guessing.
+#
+# The band is ASYMMETRIC and calibrated on the NB3c writer-independent validation split
+# (see analyze_band.py) at alpha=1.25:
+#   * BAND_ACCEPT (0.12) is wide -- genuine signatures cluster below tau, so skilled
+#     forgeries that dip *just* below tau hide right under it. This is the dangerous zone
+#     (false accepts). On the real user-tested forgeries this catches both (m=-0.03, -0.10).
+#   * BAND_REJECT (0.02) is narrow -- the m>0 region is almost entirely clear forgeries we
+#     should reject decisively, not soften. ~93% of validation forgeries stay confidently
+#     FORGED; only ~2% of forgeries slip through as false accepts.
+# Cost: ~22% of genuine queries land in the band and are asked for more references. Values
+# live in meta so they can be recalibrated without a code change.
+BAND_ACCEPT = META.get("abstain_band_accept", 0.12)
+BAND_REJECT = META.get("abstain_band_reject", 0.02)
+
 
 # --- preprocessing: replicate training exactly (invert -> 3-channel, bilinear resize) ---
 def preprocess(pil_img):
@@ -63,6 +82,24 @@ def embed_batch(pil_imgs):
 
 
 # --- verification -----------------------------------------------------------------------
+def _dedupe(pil_imgs):
+    """Drop byte-identical duplicate references.
+
+    The per-writer threshold is tau = mean + alpha*std of the reference-to-reference
+    distances -- it measures the writer's *natural* genuine spread. A duplicated reference
+    injects a distance of exactly 0 that never existed, which drags the mean down and
+    distorts std, mis-calibrating tau. (Seen in real user testing: the same signature file
+    uploaded twice.) Dedupe by content hash so only genuinely distinct references count.
+    """
+    seen, unique = set(), []
+    for im in pil_imgs:
+        h = hashlib.md5(im.tobytes()).hexdigest()
+        if h not in seen:
+            seen.add(h)
+            unique.append(im)
+    return unique
+
+
 def verify(reference_files, questioned_img):
     if not reference_files:
         return "### ⚠️ Add at least one reference signature.", None
@@ -70,6 +107,10 @@ def verify(reference_files, questioned_img):
         return "### ⚠️ Add the questioned signature to verify.", None
 
     refs = [Image.open(f.name if hasattr(f, "name") else f) for f in reference_files]
+    n_uploaded = len(refs)
+    refs = _dedupe(refs)
+    n_dropped = n_uploaded - len(refs)
+
     ref_emb = embed_batch(refs)                          # (n_ref, d)
     q_emb = embed_batch([questioned_img])[0]             # (d,)
 
@@ -88,22 +129,44 @@ def verify(reference_files, questioned_img):
         tau = GLOBAL_TAU
         mode = "global EER threshold (1 ref)"
 
-    genuine = score < tau
-    margin = abs(score - tau)
-    verdict = "✅ **GENUINE**" if genuine else "🚫 **FORGED**"
-    color = "#137333" if genuine else "#c5221f"
+    # Normalized margin: m<0 accept side, m>0 reject side. Abstain inside the asymmetric band.
+    m = (score - tau) / tau
+
+    # Three states: inside the band -> abstain rather than guess.
+    if -BAND_ACCEPT <= m <= BAND_REJECT:
+        verdict, color = "🟡 **INCONCLUSIVE**", "#b06000"
+        note = (
+            "> Distance is within the borderline band of the threshold — too close to call "
+            "confidently. In verification a false accept is the costly error, so the demo "
+            "abstains here rather than risk passing a skilled forgery. **Add more genuine "
+            "references** (to sharpen the per-writer threshold) or route to manual review.\n"
+        )
+    elif score < tau:
+        verdict, color = "✅ **GENUINE**", "#137333"
+        note = ("> Distance is comfortably below the threshold — the questioned signature "
+                "matches the references.\n")
+    else:
+        verdict, color = "🚫 **FORGED**", "#c5221f"
+        note = ("> Distance is comfortably above the threshold — the questioned signature "
+                "does **not** match the references.\n")
+
+    side = "below" if score < tau else "above"
+    dedupe_row = (
+        f"| **References** | {len(refs)} distinct "
+        f"({n_dropped} duplicate{'s' if n_dropped != 1 else ''} dropped) |\n"
+        if n_dropped else f"| **References** | {len(refs)} distinct |\n"
+    )
 
     md = (
         f"## <span style='color:{color}'>{verdict}</span>\n\n"
         f"| | |\n|---|---|\n"
         f"| **Distance** | `{score:.4f}` |\n"
         f"| **Threshold (τ)** | `{tau:.4f}` |\n"
-        f"| **Margin** | `{margin:.4f}` {'below' if genuine else 'above'} τ |\n"
+        f"| **Margin** | `{abs(score - tau):.4f}` {side} τ (m=`{m:+.3f}`, abstain "
+        f"`[-{BAND_ACCEPT:.2f}, +{BAND_REJECT:.2f}]`) |\n"
+        f"{dedupe_row}"
         f"| **Operating point** | {mode} |\n\n"
-        + ("> Distance is below the threshold — the questioned signature matches the "
-           "references.\n" if genuine else
-           "> Distance exceeds the threshold — the questioned signature does **not** match "
-           "the references.\n")
+        + note
         + "\n*Educational demo. A real system must never decide on a single model score.*"
     )
     # gallery of what was compared

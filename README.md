@@ -227,7 +227,7 @@ flowchart LR
     C --> D3[NB3: SigNet tower<br/>SE attention + triplet]
     C --> D4[NB3b/3c: EfficientNet-B0<br/>batch-hard mining]
     D4 --> E[Embedding tower<br/>+ per-writer threshold τ]
-    E --> F[NB4 demo / Gradio app<br/>distance → GENUINE / FORGED]
+    E --> F[NB4 demo / Gradio app<br/>distance → GENUINE / FORGED / INCONCLUSIVE]
 ```
 
 ---
@@ -279,9 +279,24 @@ point — AUC is unchanged):
   resolved before per-script calibration is even needed.
 - **Per-writer adaptive threshold** — the real-world version. Enrol each writer from a few genuine
   references, set `τ_w = mean + α·std` of their reference distances (their natural spread), and tune
-  the single knob `α` on validation. This is the **best operating point**: FAR 3.5% / FRR 7.7%.
+  the single knob `α` on validation. On the held-out test set this is the **best operating point**
+  (FAR 3.5% / FRR 7.7%).
 
 Both calibrate on validation/enrolment only — never on test — so the numbers stay honest.
+
+**The abstain band (a deployment refinement).** User testing on phone photos surfaced occasional
+false accepts — skilled forgeries of a *simple, print-style* signature that embed close to the
+genuine references. Sweeping `α` on the validation set showed *why* this is hard: genuine and
+skilled-forgery distances overlap intrinsically, so **no single `α` drives FAR low without
+sending FRR up steeply** (even `α`=0.5 only reaches ~2.7% FAR at a ~23% genuine-reject cost — you
+cannot tune skilled-forgery false-accepts away). The app therefore does two things beyond picking a
+threshold: it settles on a slightly stricter `α`=1.25 (the validation EER point), and it adds an
+**asymmetric abstain band** in normalized-margin space `m = (d − τ)/τ` — wide on the accept side
+(`m ≥ −0.12`, where borderline forgeries hide just under τ), narrow on the reject side
+(`m ≤ +0.02`, since that region is almost all clear forgeries). Distances inside the band return
+`INCONCLUSIVE` instead of a guess. On the real user-tested forgeries this converts the silent
+false accepts into flagged, honest abstentions. The band is calibrated on validation only, and its
+width lives in the model meta so it can be re-tuned without a code change.
 </details>
 
 <details>
@@ -311,6 +326,27 @@ fails on pen strokes, but *fine-tuned* transfer + domain preprocessing wins.
 - **Colab free-tier safe:** 3b/3c checkpoint to Google Drive every epoch and resume after a disconnect.
 </details>
 
+<details>
+<summary><b>6 · A negative result — extra preprocessing didn't help</b></summary>
+
+After the phone-photo false accepts, an obvious hypothesis was that richer input preprocessing
+(**ink bounding-box crop + CLAHE contrast normalization**, applied to *both* training and inference
+so there's no train/inference mismatch) would close the domain gap. I tested it as a controlled A/B:
+identical tower, batch-hard loss, split, and evaluation — preprocessing the only variable.
+
+It did **not** help. Against a cleanly-trained baseline, crop+CLAHE was a wash on in-domain metrics
+(val EER 10.2% vs 10.8%, test AUC 0.943 vs 0.951) and on the NFI cross-dataset proxy (pair AUC 0.920
+vs 0.923). Run directly on the real phone photos it was actively *worse* — it fixed one borderline
+forgery but broke a previously-solid case, netting no reduction in false accepts. The lesson matched
+the rest of the project: the hard case (a skilled forgery of a simple signature) is close in
+*embedding* space because the *handwriting* is close, and no amount of input cleanup manufactures
+separation that the strokes don't contain. So the shipped model keeps the plain **invert-only**
+preprocessing, and the deployment safeguard is the abstain band, not preprocessing. (A first version
+of this experiment produced a false "it helps" result — the baseline had been corrupted by an
+interrupted training run; a clean retrain overturned it. Documented as a reminder to sanity-check the
+baseline before trusting an A/B.)
+</details>
+
 ---
 
 ## 🚀 Quickstart
@@ -333,9 +369,16 @@ pip install -r requirements.txt
 python app.py
 ```
 Upload **one or more genuine reference** signatures and a **questioned** one; the app embeds
-each, computes the distance, and returns **GENUINE / FORGED**. Give 3–5 references to unlock
-the **per-writer adaptive threshold** (the best operating point, FAR ≈ 3.5%); a single
-reference uses the global threshold.
+each, computes the distance, and returns a verdict. Give 3–5 references to unlock the
+**per-writer adaptive threshold**; a single reference falls back to the global threshold.
+
+The app returns **three** states, not two — `GENUINE`, `FORGED`, or `INCONCLUSIVE`. The
+abstain state is deliberate: for a verifier a false accept (forgery passed as genuine) is the
+costly error, so when the distance lands in a borderline band around the threshold the app
+declines to guess and asks for more references or manual review, rather than risk waving a
+skilled forgery through. It also **de-duplicates references** (identical uploads are dropped
+before the per-writer threshold is computed, so a copy can't distort it). See the note below
+on how this band was calibrated.
 
 ---
 
