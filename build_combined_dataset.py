@@ -1,28 +1,9 @@
 #!/usr/bin/env python3
-"""
-Build a single, self-contained, leak-free-ready signature dataset by combining:
-  1. ICDAR  (sign_data/train/ only — test/ is the known byte-identical leak)   -> Latin
-  2. BHSig260-Hindi (archive/BHSig260-Hindi/...)                                -> Devanagari
+"""Combine ICDAR Latin and BHSig260 Hindi signatures into one folder and manifest.
 
-Design notes (see CLAUDE.md §4/§4a for the leakage story this protects):
-  * The writer-independent split lives in the NOTEBOOK, not here. This script only
-    produces a clean, collision-proof per-writer folder layout + a manifest. The
-    notebook builds leak-free pairs (match / forgery-neg / different-writer-neg) from
-    the raw folders and filters by writer for the split.
-  * Both source datasets number writers from 1, so writer ids WOULD collide. We
-    namespace every writer:  icdar_NNN  /  bhh_NNN .
-  * ICDAR keeps its ORIGINAL numeric id (icdar_049) so the existing split ranges
-    (train <=40, val 41-48, test >=49) carry over unchanged for the ICDAR portion.
-  * Everything is re-encoded to grayscale PNG (signatures are ink-on-paper; the color
-    channels are redundant and every notebook already reads grayscale). This roughly
-    halves ICDAR and shrinks the heavy BHSig .tif files ~100x.
-  * sign_data/ is left UNTOUCHED so notebooks 01, 01b, 02 keep running as-is.
-
-Output:
-  sign_data_combined/
-    manifest.csv                      relpath,writer,source,script,kind
-    icdar_001/ icdar_001_forg/ ...    (Latin)
-    bhh_001/   bhh_001_forg/   ...     (Devanagari)
+Only ICDAR's train folder is used because its supplied test folder is duplicated. Writer names
+are prefixed with `icdar_` or `bhh_` to avoid id collisions. The notebooks create the actual
+writer-independent splits from the generated manifest.
 """
 import os
 import re
@@ -72,7 +53,7 @@ def build_icdar(rows):
         except ValueError:
             continue
         writer = f"icdar_{wid:03d}"
-        # ---- genuine ----
+        # genuine
         g_src = os.path.join(ICDAR_TRAIN, d)
         g_files = sorted(f for f in os.listdir(g_src) if is_img(f))
         g_out = os.path.join(OUT, writer)
@@ -81,7 +62,7 @@ def build_icdar(rows):
             rel = f"{writer}/{writer}_g_{i:02d}.png"
             if save_gray_png(os.path.join(g_src, f), os.path.join(OUT, rel)):
                 rows.append([rel, writer, "icdar", "latin", "genuine"])
-        # ---- forged ----
+        # forged
         f_src = os.path.join(ICDAR_TRAIN, d + "_forg")
         if os.path.isdir(f_src):
             f_files = sorted(f for f in os.listdir(f_src) if is_img(f))
@@ -102,7 +83,7 @@ BHH_RE = re.compile(r"^H-S-(\d+)-([GF])-(\d+)\.(?:tif|tiff|png|jpg|jpeg)$", re.I
 def build_bhh(rows):
     """BHSig260-Hindi: folders 1..160, files H-S-{p}-G/F-{nn}.tif."""
     if not os.path.isdir(BHH_ROOT):
-        print(f"  !! BHSig Hindi not found at {BHH_ROOT} — skipping")
+        print(f"  !! BHSig Hindi not found at {BHH_ROOT}, skipping")
         return 0
     person_dirs = sorted(
         (d for d in os.listdir(BHH_ROOT) if os.path.isdir(os.path.join(BHH_ROOT, d))),

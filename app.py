@@ -11,7 +11,10 @@ from inference import (
 )
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SAMPLE_REFS = [os.path.join(HERE, "sign_data_nfi", "genuine", f"NFI-0010{i}001.png") for i in range(1, 6)]
+SAMPLE_REFS = [
+    os.path.join(HERE, "sign_data_nfi", "genuine", f"NFI-0010{i}001.png")
+    for i in range(1, 6)
+]
 SAMPLE_QUERY = os.path.join(HERE, "sign_data_nfi", "forged", "NFI-00304001.png")
 
 
@@ -35,26 +38,19 @@ def verify(reference_files, questioned_img):
     m = result["margin"]
     verdict_name = result["verdict"]
     reliability_note = (
-        "\n\n> ⚠️ **Three-reference result:** less reliable than the recommended five references."
+        "\n\n> ⚠️ Three references give a less reliable threshold. Five are recommended."
         if len(refs) == MIN_REFS else ""
     )
 
     if verdict_name == "INCONCLUSIVE":
         verdict, color = "🟡 **INCONCLUSIVE**", "#b06000"
-        note = (
-            "> Distance is within the borderline band of the threshold — too close to call "
-            "confidently. In verification a false accept is the costly error, so the demo "
-            "abstains here rather than risk passing a skilled forgery. Capture a clearer "
-            "questioned sample or route it to manual review.\n"
-        )
+        note = "> The score is too close to the threshold. Try a clearer image or review it manually.\n"
     elif verdict_name == "GENUINE":
         verdict, color = "✅ **GENUINE**", "#137333"
-        note = ("> Distance is comfortably below the threshold — the questioned signature "
-                "matches the references.\n")
+        note = "> The questioned signature is below the writer-specific threshold.\n"
     else:
         verdict, color = "🚫 **FORGED**", "#c5221f"
-        note = ("> Distance is comfortably above the threshold — the questioned signature "
-                "does **not** match the references.\n")
+        note = "> The questioned signature is above the writer-specific threshold.\n"
 
     side = "below" if score < tau else "above"
 
@@ -71,22 +67,18 @@ def verify(reference_files, questioned_img):
         + reliability_note
         + "\n*Educational demo. A real system must never decide on a single model score.*"
     )
-    # gallery of what was compared
     gallery = [(r, f"reference {i+1}") for i, r in enumerate(refs)]
     gallery.append((questioned_img, "questioned"))
     return md, gallery
 
 
-# --- UI ---------------------------------------------------------------------------------
 DESCRIPTION = """
 # ✍️ Signature Forgery Verification
 
-Deep **metric-learning** verifier (Siamese EfficientNet-B0 + batch-hard mining).
-Upload **3–5 distinct genuine reference** signatures and a **questioned** one — the model
-embeds each, measures the distance, and returns a verdict.
+This demo uses the EfficientNet-B0 embedding model from notebook 3c. Upload **3-5 distinct genuine
+references** and one **questioned signature**.
 
-**Five references are recommended.** Three are accepted for convenience, but their result is less
-reliable because the writer's normal variation is estimated from fewer examples.
+Five references are recommended. Three are accepted, but the writer threshold is less reliable.
 """
 
 with gr.Blocks(title="Signature Forgery Verification", theme=gr.themes.Soft()) as demo:
@@ -94,7 +86,7 @@ with gr.Blocks(title="Signature Forgery Verification", theme=gr.themes.Soft()) a
     with gr.Row():
         with gr.Column():
             refs_in = gr.File(
-                label=f"Reference signatures ({MIN_REFS}–{MAX_REFS} distinct; {RECOMMENDED_REFS} recommended)",
+                label=f"Reference signatures ({MIN_REFS}-{MAX_REFS} distinct; {RECOMMENDED_REFS} recommended)",
                 file_count="multiple",
                 file_types=["image"],
             )
@@ -109,7 +101,7 @@ with gr.Blocks(title="Signature Forgery Verification", theme=gr.themes.Soft()) a
     btn.click(verify, inputs=[refs_in, q_in], outputs=[out_md, out_gallery])
     gr.Markdown(
         f"<sub>Model: `{META['model']}` · input {H}×{W} · "
-        f"{MIN_REFS}–{MAX_REFS} references ({RECOMMENDED_REFS} recommended) · α={ALPHA} · model ROC-AUC 0.986 (writer-independent, "
+        f"{MIN_REFS}-{MAX_REFS} references ({RECOMMENDED_REFS} recommended) · α={ALPHA} · model ROC-AUC 0.986 (writer-independent, "
         "leak-free). Not a production authentication system.</sub>"
     )
 

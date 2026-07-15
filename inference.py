@@ -26,7 +26,6 @@ H, W = META["img_h"], META["img_w"]
 MIN_REFS = 3
 RECOMMENDED_REFS = META["n_ref"]
 MAX_REFS = RECOMMENDED_REFS
-REQUIRED_REFS = RECOMMENDED_REFS  # NB4's saved five-reference benchmark
 ALPHA = META["per_writer_alpha"]
 BAND_ACCEPT = META["abstain_band_accept"]
 BAND_REJECT = META["abstain_band_reject"]
@@ -52,7 +51,7 @@ def dedupe_images(images):
 
 
 def decide_embeddings(reference_embeddings, questioned_embedding):
-    """Apply the calibrated decision rule to 3–5 reference embeddings."""
+    """Apply the calibrated decision rule to 3-5 reference embeddings."""
     ref_emb = np.asarray(reference_embeddings)
     query_emb = np.asarray(questioned_embedding)
     n_refs = len(ref_emb)
