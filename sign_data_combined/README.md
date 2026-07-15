@@ -49,10 +49,10 @@ deliberately stores every writer flat and tags them in `manifest.csv`; the noteb
 
 1. reads `manifest.csv` (or globs the folders),
 2. picks which writers go to train / val / test **by writer key** (no person crosses
-   splits — this is what keeps results honest, see `../CLAUDE.md` §4),
+   splits; this keeps the evaluation writer-independent),
 3. builds **leak-free pairs** from the raw folders with the 3-recipe `make_pairs`
    (match / forgery-negative / different-writer-negative), so a genuine `img2` never
-   gives away the label (see `../CLAUDE.md` §4a).
+   gives away the label.
 
 Because every writer is tagged with `source` and `script`, the same manifest supports
 both **mixed-script training** (train on icdar + bhh together) and **cross-script

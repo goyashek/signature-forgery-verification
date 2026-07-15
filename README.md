@@ -16,10 +16,6 @@ license: mit
 
 ### Deep metric learning for offline handwritten-signature verification
 
-<img src="https://readme-typing-svg.demolab.com?font=Fira+Code&size=22&duration=3500&pause=900&center=true&vCenter=true&width=820&lines=Siamese+Networks+%2B+Contrastive%2C+Triplet+%26+Batch-Hard+Mining;Catching+the+Data+Leak+Behind+a+Fake+0.999;Writer-Independent+Evaluation+(EER+%2F+FAR+%2F+FRR);Cross-Script%3A+Latin+%2B+Devanagari+Signatures" alt="Typing SVG" />
-
-<br>
-
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white)
 ![TensorFlow](https://img.shields.io/badge/TensorFlow-Keras%203-FF6F00?logo=tensorflow&logoColor=white)
 ![NumPy](https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white)
@@ -116,7 +112,7 @@ a rejection.
 accepts = false rejects), **FAR** (forgeries wrongly accepted — the costly error), **FRR**
 (genuine wrongly rejected).*
 
-> **Honest caveat.** On a fully independent dataset (NFI — different pens, scanners, forgery
+> **NFI limitation.** On a fully independent dataset (NFI — different pens, scanners, forgery
 > styles), AUC holds up reasonably (0.877) but the *threshold tuned on training data* lets too many
 > forgeries through (FAR ≈ 42% at the global threshold). The model's **ranking** is sound; what
 > needs recalibrating per-dataset is the **threshold**. This is expected and well-documented in the
@@ -135,10 +131,10 @@ accepts = false rejects), **FAR** (forgeries wrongly accepted — the costly err
 |---|----------|----------|------------------|
 | 1 | [`01_plain_cnn.ipynb`](notebooks/01_plain_cnn.ipynb) | Stack the pair → single CNN → sigmoid | Honest baseline; shows why verification ≠ plain classification. Scores a fake 0.999. |
 | 1b | [`01b_data_leak_investigation.ipynb`](notebooks/01b_data_leak_investigation.ipynb) | sklearn probes, no training | Why the 0.999 was a leak, shown with img1-only / img2-only probes. |
-| 2 | [`02_siamese_cnn.ipynb`](notebooks/02_siamese_cnn.ipynb) | Twin shared-weight towers + contrastive loss | The correct paradigm: embeddings, distance, EER threshold. Earns an honest 0.973. |
+| 2 | [`02_siamese_cnn.ipynb`](notebooks/02_siamese_cnn.ipynb) | Twin shared-weight towers + contrastive loss | Shared embeddings, distance, and an EER threshold. Test AUC: 0.973. |
 | 3 | [`03_siamese_transfer.ipynb`](notebooks/03_siamese_transfer.ipynb) | SigNet-style tower + SE attention + triplet loss, Latin + Devanagari | A purpose-built signature tower; cross-script evaluation. |
-| 3b | [`03b_siamese_efficientnet.ipynb`](notebooks/03b_siamese_efficientnet.ipynb) | Fine-tuned EfficientNet-B0 + triplet | Transfer learning done right — fine-tuned, not frozen. |
-| 3c | [`03c_siamese_batchhard.ipynb`](notebooks/03c_siamese_batchhard.ipynb) | + online batch-hard mining + adaptive per-writer thresholds | The best model. Mines the hardest skilled forgeries each batch; calibrates per writer. |
+| 3b | [`03b_siamese_efficientnet.ipynb`](notebooks/03b_siamese_efficientnet.ipynb) | Fine-tuned EfficientNet-B0 + triplet | Tests fine-tuning after the frozen backbone underperformed. |
+| 3c | [`03c_siamese_batchhard.ipynb`](notebooks/03c_siamese_batchhard.ipynb) | + online batch-hard mining + adaptive per-writer thresholds | Highest test AUC in the project; calibrates the threshold per writer. |
 | 4 | [`04_final_demo.ipynb`](notebooks/04_final_demo.ipynb) | Load best model → verify real pairs | Loads 3c and demonstrates verdicts. No training. |
 
 > Run order: `01 → 01b → 02 → 03 → 03b → 03c → 04`. Notebooks 1–3 are independent learning steps;
@@ -442,11 +438,12 @@ Signature-forgery-verification/
   **cross-dataset test set** (evaluated untouched, to measure honest domain transfer).
 
 
-## 🛠️ Workflow & Engineering Stack
+## 🛠️ Tools used
 
-- **Core Frameworks**: TensorFlow/Keras, Pandas, NumPy, Gradio.
+- TensorFlow/Keras, pandas, NumPy, and Gradio.
 
-- **Development Workflow**: Used AI code-generation tools (e.g., GitHub Copilot) to help with boilerplate architecture setup and front-end UI scripting, allowing core focus to remain on data pipeline diagnostics, leak detection algorithms, and custom metric-learning validation.
+- I used GitHub Copilot for some Gradio and model setup boilerplate. I wrote and checked the data
+  leak investigation, pairing logic, and evaluation separately.
 
 ## ⚖️ Disclaimer
 
