@@ -1,7 +1,7 @@
 name: Sync to Hugging Face Space
 
 # Every push to main mirrors the app into the HF Space. It uploads ONLY the files the
-# Space needs (app.py, requirements.txt, README.md, models/) — never the datasets or
+# Space needs (app.py, inference.py, requirements.txt, README.md, models/) — never the datasets or
 # notebooks, which are large and irrelevant to the deployed app.
 
 on:
@@ -36,7 +36,15 @@ jobs:
               repo_type="space",
               folder_path=".",
               # only these reach the Space — datasets/notebooks are excluded
-              allow_patterns=["app.py", "requirements.txt", "README.md", "models/**"],
+              allow_patterns=[
+                  "app.py", "inference.py", "requirements.txt", "README.md", "models/**",
+                  "sign_data_nfi/genuine/NFI-00101001.png",
+                  "sign_data_nfi/genuine/NFI-00102001.png",
+                  "sign_data_nfi/genuine/NFI-00103001.png",
+                  "sign_data_nfi/genuine/NFI-00104001.png",
+                  "sign_data_nfi/genuine/NFI-00105001.png",
+                  "sign_data_nfi/forged/NFI-00304001.png",
+              ],
               commit_message=f"Sync from GitHub @ {os.environ.get('GITHUB_SHA','')[:7]}",
           )
           print("synced to", os.environ["SPACE_ID"])

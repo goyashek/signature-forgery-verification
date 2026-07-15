@@ -42,7 +42,7 @@ license: mit
 This project checks whether a questioned signature is genuine or a forgery by comparing it
 against a known reference — the *offline signature verification* problem. Instead of training one
 classifier per person, I learn a distance metric over signatures, so the model can judge writers it
-never saw during training and enrol a new person from a single reference.
+never saw during training and enrol a new person from a small reference set.
 
 I built it as a learning progression: start with the naive approach, watch it break, and work toward
 the right one — keeping the reasoning behind each step visible rather than jumping to the answer. The
@@ -72,15 +72,15 @@ a per-person classifier breaks the moment a new person shows up, since you'd hav
 A Siamese network solves the right problem: two identical, weight-sharing CNN towers map each
 signature into an embedding vector, and a metric-learning loss shapes that space so genuine pairs sit
 close together and forgeries get pushed apart. Verification is then just a distance threshold — and it
-generalises to unseen writers, enrolling a new signer from a single reference.
+generalises to unseen writers without retraining the model for each signer.
 
 ---
 
 ## 🏆 Results (writer-independent, leak-free test set)
 
-Every number below is on writers never seen in training, with leak-free pairs, so they're
-trustworthy. What I find interesting is the progression: a fake 0.999, then an honest 0.973, then a
-real climb to 0.986 by improving the architecture and the training signal.
+The first table is the **pair-based model-development evaluation** on writers never seen in
+training. It compares embedding towers under the same leak-free protocol; it is not the final
+three-state app decision rule.
 
 | # | Model | Test ROC-AUC | Val EER | Test FAR | Test FRR | Cross-dataset (NFI) AUC |
 |---|-------|:------------:|:--------:|:---:|:---:|:---:|
@@ -90,14 +90,27 @@ real climb to 0.986 by improving the architecture and the training signal.
 | 3b | Fine-tuned EfficientNet-B0 + triplet | 0.941 | 12.5% | 9.9% | 17.5% | 0.871 |
 | **3c** | **EfficientNet-B0 + batch-hard mining** | **0.986** | **8.0%** | **6.5%** | **5.8%** | **0.877** |
 
-**The shipped model (3c)** — best on every axis, in a **17 MB** model (4.2 M params):
+**Model-development views for 3c** — a **17 MB** model (4.2 M params):
 
 | view | ROC-AUC | accuracy | FAR | FRR |
 |---|:---:|:---:|:---:|:---:|
 | overall (global threshold) | 0.986 | 93.9% | 6.5% | 5.8% |
 | Latin only | 0.989 | 94.9% | 8.6% | 1.7% |
 | Devanagari only | 0.984 | 92.9% | 6.5% | 7.7% |
-| **best operating point** *(per-writer threshold)* | **0.989** | — | **3.5%** | **7.7%** |
+| per-writer threshold *(older two-state development protocol)* | 0.989 | — | 3.5% | 7.7% |
+
+**End-to-end recommended protocol** — five genuine references, `α=1.25`, and an abstention
+band. These figures were produced by running [`04_final_demo.ipynb`](notebooks/04_final_demo.ipynb)
+with the same `inference.py` path used by the app:
+
+| questioned sample | returned genuine | inconclusive | returned forged |
+|---|---:|---:|---:|
+| genuine (n=717) | 68.62% | 22.87% | 8.51% |
+| forgery (n=1,148) | **0.17%** | 2.79% | 97.04% |
+
+The end-to-end distance AUC is **0.9885** across 51 unseen test writers. The three columns matter
+more for deployment: an inconclusive result is deliberately not counted as either an acceptance or
+a rejection.
 
 *Metrics: **ROC-AUC** (threshold-free separability), **EER** (Equal Error Rate — where false
 accepts = false rejects), **FAR** (forgeries wrongly accepted — the costly error), **FRR**
@@ -109,7 +122,7 @@ accepts = false rejects), **FAR** (forgeries wrongly accepted — the costly err
 > needs recalibrating per-dataset is the **threshold**. This is expected and well-documented in the
 > signature literature — a single model score should never be the only check in a real system.
 >
-> The per-writer adaptive threshold is the best operating point **in-domain**, but it does *not*
+> The older per-writer two-state threshold is a strong operating point **in-domain**, but it does *not*
 > transfer either: on NFI it drops to AUC 0.787 / FAR 32% / FRR 20%, since the writer's genuine
 > spread is estimated from just a few references on an unfamiliar acquisition setup. Both operating
 > points need per-dataset recalibration before use on a new source.
@@ -239,7 +252,7 @@ flowchart LR
 
 Verification is a same/different question. A classifier with one output per writer can't score a
 writer it never trained on; a Siamese network learns a **general distance function** in embedding
-space, so a new signer is enrolled with a single reference — no retraining. The towers **share
+space, so a new signer can be enrolled from references without retraining. The towers **share
 weights** (built once with the Keras Functional API, called twice), guaranteeing both signatures
 are mapped by the *same* function.
 </details>
@@ -277,10 +290,11 @@ point — AUC is unchanged):
   3b (Latin FRR ≈ 35% at the shared global threshold). In the final 3c model, batch-hard mining
   already pulls Latin FRR down to 1.7% at the global threshold, so the over-rejection is largely
   resolved before per-script calibration is even needed.
-- **Per-writer adaptive threshold** — the real-world version. Enrol each writer from a few genuine
+- **Per-writer adaptive threshold** — the enrollment version. Enrol each writer from five genuine
   references, set `τ_w = mean + α·std` of their reference distances (their natural spread), and tune
-  the single knob `α` on validation. On the held-out test set this is the **best operating point**
-  (FAR 3.5% / FRR 7.7%).
+  the single knob `α` on validation. NB3c originally reported a two-state development result at
+  `α=1.5` (FAR 3.5% / FRR 7.7%); the shipped three-state protocol instead uses `α=1.25` plus the
+  abstention band below.
 
 Both calibrate on validation/enrolment only — never on test — so the numbers stay honest.
 
@@ -295,8 +309,9 @@ threshold: it settles on a slightly stricter `α`=1.25 (the validation EER point
 (`m ≥ −0.12`, where borderline forgeries hide just under τ), narrow on the reject side
 (`m ≤ +0.02`, since that region is almost all clear forgeries). Distances inside the band return
 `INCONCLUSIVE` instead of a guess. On the real user-tested forgeries this converts the silent
-false accepts into flagged, honest abstentions. The band is calibrated on validation only, and its
-width lives in the model meta so it can be re-tuned without a code change.
+false accepts into flagged, honest abstentions. On the held-out app protocol, 0.17% of forgeries
+are returned genuine, 2.79% are flagged inconclusive, and 97.04% are returned forged. Its width
+lives in the model meta so it can be re-tuned without a code change.
 </details>
 
 <details>
@@ -368,14 +383,14 @@ The app is a **Gradio** Space. Try it live on HuggingFace, or run it locally:
 pip install -r requirements.txt
 python app.py
 ```
-Upload **one or more genuine reference** signatures and a **questioned** one; the app embeds
-each, computes the distance, and returns a verdict. Give 3–5 references to unlock the
-**per-writer adaptive threshold**; a single reference falls back to the global threshold.
+Upload **3–5 distinct genuine reference** signatures and a **questioned** one. Five remains the
+recommended enrollment count used for the reported app metrics. Three is supported for convenience,
+but the UI warns that its result is less reliable; duplicate references are rejected.
 
 The app returns **three** states, not two — `GENUINE`, `FORGED`, or `INCONCLUSIVE`. The
 abstain state is deliberate: for a verifier a false accept (forgery passed as genuine) is the
 costly error, so when the distance lands in a borderline band around the threshold the app
-declines to guess and asks for more references or manual review, rather than risk waving a
+declines to guess and asks for a clearer capture or manual review, rather than risk waving a
 skilled forgery through. It also **de-duplicates references** (identical uploads are dropped
 before the per-writer threshold is computed, so a copy can't distort it). See the note below
 on how this band was calibrated.
@@ -397,7 +412,9 @@ Signature-forgery-verification/
 ├── models/
 │   ├── siamese_bh_embedding.keras         # the shipped 3c tower (17 MB)
 │   └── siamese_bh_meta.json               # threshold, preprocessing, per-writer α
-├── app.py                                 # Gradio app (HF Spaces): upload refs + questioned → verdict
+├── inference.py                           # shared preprocessing + 3–5-reference decision rule
+├── app.py                                 # Gradio UI using the shared inference path
+├── test_inference.py                      # lightweight CPU smoke tests for that path
 ├── check_data_leak.py                     # flags both leaks (exits non-zero if found)
 ├── build_combined_dataset.py              # builds sign_data_combined/ reproducibly
 ├── sign_data/                             # ICDAR 2011 (Latin) — NB1/01b/NB2
