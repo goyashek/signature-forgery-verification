@@ -366,6 +366,10 @@ Signature-forgery-verification/
   collision-proof, grayscale-PNG dataset with a `manifest.csv` (224 writers). NB3/3b/3c train on
   this and report **per-script** generalisation. Built reproducibly by
   [`build_combined_dataset.py`](build_combined_dataset.py).
+  > **Leak-audited.** md5-hashing all 10,289 images found **0 cross-writer and 0 cross-split
+  > duplicates**, the writer-independent split is provably disjoint (145/28/51), and the merge
+  > ships no pair CSV — so neither original leak survives the combination. Only benign intra-writer
+  > duplicates remain (not a leak).
 - **`sign_data_nfi/`** — a clean, deduplicated NFI subset committed as an independent
   **cross-dataset test set** (evaluated untouched, to measure honest domain transfer).
 
