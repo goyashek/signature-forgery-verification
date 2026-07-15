@@ -30,7 +30,7 @@ license: mit
 
 ![Best Model](https://img.shields.io/badge/Best%20Model-EfficientNet--B0%20%2B%20Batch--Hard-success)
 ![ROC-AUC](https://img.shields.io/badge/Test%20ROC--AUC-0.986-blue)
-![EER](https://img.shields.io/badge/Test%20EER-8.0%25-blue)
+![EER](https://img.shields.io/badge/Val%20EER-8.0%25-blue)
 ![Size](https://img.shields.io/badge/Model%20Size-17%20MB-blueviolet)
 
 </div>
@@ -82,7 +82,7 @@ Every number below is on writers never seen in training, with leak-free pairs, s
 trustworthy. What I find interesting is the progression: a fake 0.999, then an honest 0.973, then a
 real climb to 0.986 by improving the architecture and the training signal.
 
-| # | Model | Test ROC-AUC | Test EER | FAR | FRR | Cross-dataset (NFI) AUC |
+| # | Model | Test ROC-AUC | Val EER | Test FAR | Test FRR | Cross-dataset (NFI) AUC |
 |---|-------|:------------:|:--------:|:---:|:---:|:---:|
 | 1 | Plain CNN (stacked pair) | `0.999` ⚠️ *leak — not real* | — | — | — | — |
 | 2 | Siamese CNN + contrastive | 0.973 | 6.1% | 9.7% | 6.6% | 0.791 |
@@ -108,6 +108,11 @@ accepts = false rejects), **FAR** (forgeries wrongly accepted — the costly err
 > forgeries through (FAR ≈ 42% at the global threshold). The model's **ranking** is sound; what
 > needs recalibrating per-dataset is the **threshold**. This is expected and well-documented in the
 > signature literature — a single model score should never be the only check in a real system.
+>
+> The per-writer adaptive threshold is the best operating point **in-domain**, but it does *not*
+> transfer either: on NFI it drops to AUC 0.787 / FAR 32% / FRR 20%, since the writer's genuine
+> spread is estimated from just a few references on an unfamiliar acquisition setup. Both operating
+> points need per-dataset recalibration before use on a new source.
 
 ---
 
@@ -268,7 +273,10 @@ A single global threshold is a compromise. Two refinements (no retraining, just 
 point — AUC is unchanged):
 
 - **Per-script threshold** — calibrate a separate EER threshold for Latin and Devanagari on the
-  validation set, apply each to its own test pairs. Fixes the Latin over-rejection (FRR 35% → ~2%).
+  validation set, apply each to its own test pairs. This targets the Latin over-rejection seen in
+  3b (Latin FRR ≈ 35% at the shared global threshold). In the final 3c model, batch-hard mining
+  already pulls Latin FRR down to 1.7% at the global threshold, so the over-rejection is largely
+  resolved before per-script calibration is even needed.
 - **Per-writer adaptive threshold** — the real-world version. Enrol each writer from a few genuine
   references, set `τ_w = mean + α·std` of their reference distances (their natural spread), and tune
   the single knob `α` on validation. This is the **best operating point**: FAR 3.5% / FRR 7.7%.
