@@ -1,0 +1,2 @@
+python -m unittest test_inference.py
+python -m py_compile app.py inference.py check_data_leak.py
