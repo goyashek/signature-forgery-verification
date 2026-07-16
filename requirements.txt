@@ -1,8 +1,8 @@
-# Signature Forgery Verification — HuggingFace Space (Gradio) runtime deps.
-# This file lists ONLY the extra packages the app needs on top of gradio.
+# Signature Forgery Verification — app runtime dependencies.
+# This file works for both local use and the Hugging Face Space.
 #
-# Do NOT pin gradio here — the HF Spaces Gradio SDK installs and manages gradio
-# itself (currently 6.x). Pinning it causes a "ResolutionImpossible" build error.
+# Do NOT pin gradio here — the HF Spaces Gradio SDK installs and manages its
+# version. Pinning it can cause a "ResolutionImpossible" build error.
 #
 # numpy is pinned < 2 on purpose: TensorFlow 2.16 is built against the NumPy 1.x ABI
 # and crashes at import under NumPy 2.x. This stack is verified on Python 3.11, which
@@ -15,3 +15,4 @@
 tensorflow>=2.15,<2.20
 numpy>=1.26,<2
 Pillow>=10.0
+gradio
